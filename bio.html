@@ -12,7 +12,9 @@
             text-align: center;
         }
         #chart-container {
+            /* グラフの縦幅を広げるための設定 */
             width: 80%;
+            height: 400px; /*  ここで縦幅を400pxに設定 */
             margin: 20px auto;
         }
         input[type="date"], button {
@@ -48,18 +50,13 @@
 
         // バイオリズムの値を計算する関数
         function calculateValue(days, period) {
-            // days (生後日数) / period (周期) をラジアンに変換して sin 関数を適用
-            // 2 * Math.PI * (days / period) は、何サイクル目かの割合をラジアンに変換
             return Math.sin(2 * Math.PI * (days / period));
         }
 
         // 生後日数を計算する関数
         function getDaysSinceBirth(birthDate) {
             const today = new Date();
-            // 日付を「日」単位のミリ秒に変換して差を計算
             const diffTime = today.getTime() - birthDate.getTime();
-            // ミリ秒を日数に変換
-            // 1000ミリ秒 * 60秒 * 60分 * 24時間 = 1日のミリ秒
             return Math.floor(diffTime / (1000 * 60 * 60 * 24));
         }
 
@@ -95,18 +92,17 @@
         }
 
         // グラフを描画する関数
-        let myChart; // グローバル変数でChartインスタンスを保持
+        let myChart;
 
         function drawBiorhythmChart(birthDate) {
             const ctx = document.getElementById('biorhythmChart').getContext('2d');
 
-            // グラフに表示する期間を設定 (例: 今日から前後10日間、計21日間)
             const daysToShow = 21;
             const today = new Date();
             const startDate = new Date(today);
-            startDate.setDate(today.getDate() - Math.floor(daysToShow / 2)); // 開始日
+            startDate.setDate(today.getDate() - Math.floor(daysToShow / 2));
 
-            const labels = []; // X軸の日付
+            const labels = [];
             const pData = [];
             const eData = [];
             const iData = [];
@@ -125,12 +121,10 @@
                 iData.push(calculateValue(daysSinceBirth, I_PERIOD).toFixed(2));
             }
 
-            // 既にグラフが存在する場合は破棄
             if (myChart) {
                 myChart.destroy();
             }
 
-            // Chart.jsの設定
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -141,7 +135,7 @@
                             data: pData,
                             borderColor: 'blue',
                             tension: 0.1,
-                            pointBackgroundColor: (context) => context.dataIndex === todayIndex ? 'black' : 'blue', // 本日の点を強調
+                            pointBackgroundColor: (context) => context.dataIndex === todayIndex ? 'black' : 'blue',
                             pointRadius: (context) => context.dataIndex === todayIndex ? 6 : 3,
                         },
                         {
@@ -164,7 +158,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: false, //  縦横比を固定しない設定
                     plugins: {
                         title: {
                             display: true,
@@ -179,7 +173,6 @@
                                 display: true,
                                 text: 'バイオリズム値'
                             },
-                            // 0のラインを強調
                             grid: {
                                 color: (context) => context.tick.value === 0 ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.1)',
                                 lineWidth: (context) => context.tick.value === 0 ? 2 : 1,
@@ -190,17 +183,10 @@
                                 display: true,
                                 text: '日付'
                             },
-                            // 本日の日付を強調（背景色で）
-                            backgroundColor: (context) => context.dataIndex === todayIndex ? 'rgba(255, 255, 0, 0.3)' : 'transparent',
                         }
                     }
                 }
             });
-
-             // 本日の日付の背景を塗るためのカスタムプラグイン（Chart.js v3系での対応例）
-             // ただし、上記scales.xで直接設定するのは難しいため、より簡易な方法としてX軸のラベルを調整するか、
-             // プラグインで描画する必要がありますが、今回はシンプルに`pointBackgroundColor`と`pointRadius`で本日の点を強調しています。
-             // (X軸ラベルの強調はCSSやHTMLの調整、またはChart.jsのより高度なカスタムが必要です)
         }
     </script>
 
