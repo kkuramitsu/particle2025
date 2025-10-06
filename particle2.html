@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>派手なマウス軌跡パーティクル</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000; /* 背景を黒に */
+            cursor: none; /* マウスカーソルを非表示にして、パーティクルだけにする */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+
+    <script>
+        // --- 設定 ---
+        const MAX_PARTICLES_PER_MOVE = 3; // マウス移動1回で生成するパーティクル数
+        const MAX_TOTAL_PARTICLES = 300; // 画面上に存在する最大パーティクル総数
+        const PARTICLE_LIFESPAN = 180; // パーティクルが消えるまでのフレーム数（長めに）
+        const PARTICLE_INITIAL_SPEED = 3; // パーティクルの初期速度（少し速めに）
+        const FADE_AMOUNT = 0.05; // 残像効果の濃さ (0.01: 薄い, 0.1: 濃い)
+        const HUE_INCREMENT = 0.5; // 色相を少しずつ変化させる量（カラフルにするため）
+
+        // --- 初期設定 ---
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let mouseX = 0;
+        let mouseY = 0;
+        let hue = 0; // 色相の初期値
+
+        // キャンバスのサイズをウィンドウに合わせる関数
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // --- イベントリスナー ---
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+            // マウスの動きに合わせて複数のパーティクルを生成
+            for (let i = 0; i < MAX_PARTICLES_PER_MOVE; i++) {
+                createParticle();
+            }
+        });
+
+        // --- パーティクルクラス ---
+        class Particle {
+            constructor(x, y, currentHue) {
+                this.x = x;
+                this.y = y;
+                // 円状に大きく拡散させるためのランダムな速度
+                const angle = Math.random() * Math.PI * 2; // 全方向
+                this.vx = Math.cos(angle) * PARTICLE_INITIAL_SPEED * (Math.random() * 0.5 + 0.75);
+                this.vy = Math.sin(angle) * PARTICLE_INITIAL_SPEED * (Math.random() * 0.5 + 0.75);
+                
+                this.size = Math.random() * 4 + 2; // サイズは 2 から 6 の範囲でランダム
+                this.life = PARTICLE_LIFESPAN;
+                this.color = `hsl(${currentHue}, 100%, 70%)`; // 現在の色相を使用
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                // 速度の減衰をもう少し緩やかにして、長く動くように
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                // 重力のような効果を少し加える（任意）
+                // this.vy += 0.05; 
+            }
+
+            draw() {
+                const alpha = this.life / PARTICLE_LIFESPAN; // 寿命に応じて透明度を調整
+                ctx.globalAlpha = alpha;
+                
+                // グラデーション効果でキラキラ感を出す
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                gradient.addColorStop(0, `hsla(${hue}, 100%, 85%, ${alpha})`); // 中心はより明るく
+                gradient.addColorStop(1, `hsla(${hue + 30}, 100%, 50%, 0)`); // 外側は透明に
+
+                ctx.fillStyle = gradient; // グラデーションを塗りつぶしスタイルに設定
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // --- パーティクル生成と管理 ---
+        function createParticle() {
+            // 最大総数を超えていたら、古いパーティクルを削除
+            while (particles.length >= MAX_TOTAL_PARTICLES) {
+                particles.shift();
+            }
+            particles.push(new Particle(mouseX, mouseY, hue));
+        }
+
+        function drawParticles() {
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+        }
+
+        // --- メインループ ---
+        function loop() {
+            // 残像効果を調整
+            ctx.fillStyle = `rgba(0, 0, 0, ${FADE_AMOUNT})`; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawParticles();
+
+            // 色相を常に変化させて、カラフルなエフェクトにする
+            hue = (hue + HUE_INCREMENT) % 360; 
+
+            requestAnimationFrame(loop);
+        }
+
+        // 初期化
+        resizeCanvas();
+        loop();
+    </script>
+</body>
+</html>
