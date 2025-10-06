@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>バイオリズム占い</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        #chart-container {
+            width: 80%;
+            margin: 20px auto;
+        }
+        input[type="date"], button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>バイオリズム占い</h1>
+
+    <label for="birthdate">生年月日を選択してください:</label>
+    <input type="date" id="birthdate">
+    <button onclick="calculateBiorhythm()">計算・表示</button>
+
+    <div id="result"></div>
+
+    <div id="chart-container">
+        <canvas id="biorhythmChart"></canvas>
+    </div>
+
+    <script>
+        // 周期 (日数)
+        const P_PERIOD = 23; // 身体 (Physical)
+        const E_PERIOD = 28; // 感情 (Emotional)
+        const I_PERIOD = 33; // 知性 (Intellectual)
+
+        // バイオリズムの値を計算する関数
+        function calculateValue(days, period) {
+            // days (生後日数) / period (周期) をラジアンに変換して sin 関数を適用
+            // 2 * Math.PI * (days / period) は、何サイクル目かの割合をラジアンに変換
+            return Math.sin(2 * Math.PI * (days / period));
+        }
+
+        // 生後日数を計算する関数
+        function getDaysSinceBirth(birthDate) {
+            const today = new Date();
+            // 日付を「日」単位のミリ秒に変換して差を計算
+            const diffTime = today.getTime() - birthDate.getTime();
+            // ミリ秒を日数に変換
+            // 1000ミリ秒 * 60秒 * 60分 * 24時間 = 1日のミリ秒
+            return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // 計算・表示を実行するメイン関数
+        function calculateBiorhythm() {
+            const birthdateInput = document.getElementById('birthdate').value;
+            if (!birthdateInput) {
+                alert('生年月日を入力してください。');
+                return;
+            }
+
+            const birthDate = new Date(birthdateInput);
+            const daysSinceBirth = getDaysSinceBirth(birthDate);
+
+            // 本日のバイオリズム値を計算
+            const pValue = calculateValue(daysSinceBirth, P_PERIOD);
+            const eValue = calculateValue(daysSinceBirth, E_PERIOD);
+            const iValue = calculateValue(daysSinceBirth, I_PERIOD);
+
+            // 結果の表示
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <h2>本日のバイオリズム (${new Date().toLocaleDateString('ja-JP')})</h2>
+                <p>生後日数: ${daysSinceBirth}日</p>
+                <p style="color: blue;"><strong>身体 (P):</strong> ${pValue.toFixed(2)}</p>
+                <p style="color: red;"><strong>感情 (E):</strong> ${eValue.toFixed(2)}</p>
+                <p style="color: green;"><strong>知性 (I):</strong> ${iValue.toFixed(2)}</p>
+                <p>※値は -1.00 から +1.00 の間で変動します（+1.00が最高潮）。</p>
+            `;
+
+            // グラフの描画
+            drawBiorhythmChart(birthDate);
+        }
+
+        // グラフを描画する関数
+        let myChart; // グローバル変数でChartインスタンスを保持
+
+        function drawBiorhythmChart(birthDate) {
+            const ctx = document.getElementById('biorhythmChart').getContext('2d');
+
+            // グラフに表示する期間を設定 (例: 今日から前後10日間、計21日間)
+            const daysToShow = 21;
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - Math.floor(daysToShow / 2)); // 開始日
+
+            const labels = []; // X軸の日付
+            const pData = [];
+            const eData = [];
+            const iData = [];
+            const todayIndex = Math.floor(daysToShow / 2);
+
+            for (let i = 0; i < daysToShow; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+
+                const daysSinceBirth = Math.floor((currentDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                labels.push(currentDate.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
+
+                pData.push(calculateValue(daysSinceBirth, P_PERIOD).toFixed(2));
+                eData.push(calculateValue(daysSinceBirth, E_PERIOD).toFixed(2));
+                iData.push(calculateValue(daysSinceBirth, I_PERIOD).toFixed(2));
+            }
+
+            // 既にグラフが存在する場合は破棄
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            // Chart.jsの設定
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '身体 (Physical)',
+                            data: pData,
+                            borderColor: 'blue',
+                            tension: 0.1,
+                            pointBackgroundColor: (context) => context.dataIndex === todayIndex ? 'black' : 'blue', // 本日の点を強調
+                            pointRadius: (context) => context.dataIndex === todayIndex ? 6 : 3,
+                        },
+                        {
+                            label: '感情 (Emotional)',
+                            data: eData,
+                            borderColor: 'red',
+                            tension: 0.1,
+                            pointBackgroundColor: (context) => context.dataIndex === todayIndex ? 'black' : 'red',
+                            pointRadius: (context) => context.dataIndex === todayIndex ? 6 : 3,
+                        },
+                        {
+                            label: '知性 (Intellectual)',
+                            data: iData,
+                            borderColor: 'green',
+                            tension: 0.1,
+                            pointBackgroundColor: (context) => context.dataIndex === todayIndex ? 'black' : 'green',
+                            pointRadius: (context) => context.dataIndex === todayIndex ? 6 : 3,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'バイオリズム（前後10日間）'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: -1.0,
+                            max: 1.0,
+                            title: {
+                                display: true,
+                                text: 'バイオリズム値'
+                            },
+                            // 0のラインを強調
+                            grid: {
+                                color: (context) => context.tick.value === 0 ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.1)',
+                                lineWidth: (context) => context.tick.value === 0 ? 2 : 1,
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '日付'
+                            },
+                            // 本日の日付を強調（背景色で）
+                            backgroundColor: (context) => context.dataIndex === todayIndex ? 'rgba(255, 255, 0, 0.3)' : 'transparent',
+                        }
+                    }
+                }
+            });
+
+             // 本日の日付の背景を塗るためのカスタムプラグイン（Chart.js v3系での対応例）
+             // ただし、上記scales.xで直接設定するのは難しいため、より簡易な方法としてX軸のラベルを調整するか、
+             // プラグインで描画する必要がありますが、今回はシンプルに`pointBackgroundColor`と`pointRadius`で本日の点を強調しています。
+             // (X軸ラベルの強調はCSSやHTMLの調整、またはChart.jsのより高度なカスタムが必要です)
+        }
+    </script>
+
+</body>
+</html>
